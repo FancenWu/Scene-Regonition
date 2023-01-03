@@ -42,25 +42,24 @@ def load_test_images(number_of_images):
 # Function to generate denseSIFT features for an image.
 # Parameter: data is a set of image files
 def gen_denseSIFT_features(img):
-    step_size = 2
+    step_size = 5
     # gray = cv.cvtColor(img, cv.COLOR_BGR2GRAY)
     sift = cv.xfeatures2d.SIFT_create()
     # kp is a list of keypoints obtained by scanning pixels
     kp = [cv.KeyPoint(x, y, step_size) for y in range(0, img.shape[0], step_size)
           for x in range(0, img.shape[1], step_size)]
-    # desc is the denseSIFT descriptors
-    desc = sift.compute(img, kp)[1]
-    return desc
+    descriptors = sift.compute(img, kp)[1]
+    return descriptors
 
 
 # Build the codebook
 # desc_list is set of descriptors; k is the number of clusters
 def gen_codebook(desc_list, k):
-    features = np.vstack((descriptor for descriptor in desc_list))
-    kmeans = KMeans(n_clusters=k, random_state=0).fit(features)
-    codebook = kmeans.cluster_centers_
+    print("Building the Codebook, it will take some time")
+    kmeans = KMeans(n_clusters=k, random_state=0).fit(desc_list)
+    # codebook = kmeans.cluster_centers_
     print("Successfully build codebook")
-    return codebook
+    return kmeans
 
 
 # Build the histogram with spatial pyramid matching using different levels
@@ -99,6 +98,9 @@ def build_spatial_pyramid(img, level, codebook, k):
                     b = b + width//4
                 a = a + height//4
     pyramid = np.array(pyramid).ravel()
+    dev = np.std(pyramid)
+    pyramid -= np.mean(pyramid)
+    pyramid /= dev
     print("Success to build the spatial pyramid")
     return pyramid
 
@@ -113,23 +115,29 @@ def get_pyramid(data, level, codebook, k):
         return result
 
 
-training_data, training_labels = load_train_images(100)
-testing_data, testing_filenames = load_test_images(100)
-k = 100
+training_data, training_labels = load_train_images(10)
+testing_data, testing_filenames = load_test_images(10)
+
+k = 50
+
+# Extract denseSIFT descriptors from training data
 train_desc = [gen_denseSIFT_features(img) for img in training_data]
 print("Codebook size: ", k)
-print("Building the Codebook, it will take some time")
 all_train_desc = []
 for i in range(len(train_desc)):
     for j in range(train_desc[i].shape[0]):
         all_train_desc.append(train_desc[i][j, :])
 
 all_train_desc = np.array(all_train_desc)
+print(all_train_desc.shape)
 codebook = gen_codebook(all_train_desc, k)
 
 training_hist = get_pyramid(training_data, 2, codebook, k)
 testing_hist = get_pyramid(testing_data, 2, codebook, k)
-
+training_labels = np.asarray(training_labels)
+print(training_hist.shape)
+print(testing_hist.shape)
+print(training_labels.shape)
 
 # Train a linear SVM
 clf = LinearSVC(random_state=0)
