@@ -43,8 +43,9 @@ def load_test_images(number_of_images):
 # Parameter: data is a set of image files
 def gen_denseSIFT_features(img):
     step_size = 5
+    feature_num = 500
     # gray = cv.cvtColor(img, cv.COLOR_BGR2GRAY)
-    sift = cv.xfeatures2d.SIFT_create()
+    sift = cv.xfeatures2d.SIFT_create(feature_num)
     # kp is a list of keypoints obtained by scanning pixels
     kp = [cv.KeyPoint(x, y, step_size) for y in range(0, img.shape[0], step_size)
           for x in range(0, img.shape[1], step_size)]
@@ -57,16 +58,17 @@ def gen_denseSIFT_features(img):
 def gen_codebook(desc_list, k):
     print("Building the Codebook, it will take some time")
     kmeans = KMeans(n_clusters=k, random_state=0).fit(desc_list)
-    # codebook = kmeans.cluster_centers_
-    print("Successfully build codebook")
-    return kmeans
+    codebook = kmeans.cluster_centers_
+    c_time = time.time()
+    print("Successfully build codebook, it costs: ", c_time - s_time)
+    return codebook
 
 
 # Build the histogram with spatial pyramid matching using different levels
 # img is input image file; level ranging from 0 to 2; A codebook with k vocabularies
 def build_spatial_pyramid(img, level, codebook, k):
     height, width = img.shape
-    step_size = 2  # It equals to the step_size in function gen_denseSIFT_features
+    step_size = 5  # It equals to the step_size in function gen_denseSIFT_features
     pyramid = []
     # Build histograms for each level
     for l in range(level + 1):
@@ -77,46 +79,51 @@ def build_spatial_pyramid(img, level, codebook, k):
             pyramid.append(hist0*0.25)
         if l == 1:
             a, b = 0, 0
-            for y in range(1, 3):
+            for y in range(1, (step_size**l)+1):
                 b = 0
                 for x in range(1, 3):
-                    desc1 = gen_denseSIFT_features(img[a: a + height//2, b: b + width//2])
+                    desc1 = gen_denseSIFT_features(img[a: a + height//(step_size**l), b: b + width//(step_size**l)])
                     predict1 = codebook.predict(desc1)
                     hist1 = np.bincount(predict1, minlength=k).reshape(1, -1).ravel()
                     pyramid.append(hist1*0.25)
-                    b = b + width//2
-                a = a + height//2
+                    b = b + width//(step_size**l)
+                a = a + height//(step_size**l)
         if l == 2:
             a, b = 0, 0
-            for y in range(1, 5):
+            for y in range(1, (step_size**l)+1):
                 b = 0
                 for x in range(1, 5):
-                    desc2 = gen_denseSIFT_features(img[a: a + height//4, b: b + width//4])
+                    desc2 = gen_denseSIFT_features(img[a: a + height//(step_size**l), b: b + width//(step_size**l)])
                     predict2 = codebook.predict(desc2)
                     hist2 = np.bincount(predict2, minlength=k).reshape(1, -1).ravel()
                     pyramid.append(hist2*0.5)
-                    b = b + width//4
-                a = a + height//4
+                    b = b + width//(step_size**l)
+                a = a + height//(step_size**l)
     pyramid = np.array(pyramid).ravel()
+    # print("Success to build the spatial pyramid")
+
+    # normalize the histogram
     dev = np.std(pyramid)
     pyramid -= np.mean(pyramid)
     pyramid /= dev
-    print("Success to build the spatial pyramid")
     return pyramid
 
 
-# Get pyramid for each images
+# Get pyramid for each image
 def get_pyramid(data, level, codebook, k):
     result = []
     for i in range(len(data)):
         pyramid = build_spatial_pyramid(data[i], level, codebook, k)
-        result.append(pyramid)
+        # print(pyramid.shape)
+        pyramid_size = pyramid.shape[0]
         result = np.array(result)
-        return result
+        result = np.append(result, pyramid)
+    result = result.reshape(len(data), pyramid_size)
+    return result
 
 
-training_data, training_labels = load_train_images(10)
-testing_data, testing_filenames = load_test_images(10)
+training_data, training_labels = load_train_images(100)
+testing_data, testing_filenames = load_test_images(100)
 
 k = 50
 
@@ -129,7 +136,7 @@ for i in range(len(train_desc)):
         all_train_desc.append(train_desc[i][j, :])
 
 all_train_desc = np.array(all_train_desc)
-print(all_train_desc.shape)
+print("The shape of descriptors: ", all_train_desc.shape)
 codebook = gen_codebook(all_train_desc, k)
 
 training_hist = get_pyramid(training_data, 2, codebook, k)
