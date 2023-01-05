@@ -1,0 +1,10 @@
+0.jpg Street
+1.jpg Forest
+2.jpg Street
+3.jpg Forest
+4.jpg Mountain
+5.jpg bedroom
+6.jpg OpenCountry
+7.jpg kitchen
+8.jpg bedroom
+9.jpg Street
