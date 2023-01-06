@@ -46,6 +46,20 @@ def load_test_images(number_of_images):
     return test_images, file_names
 
 
+# load last 10% of training data from each class for our testing data
+def load_test_images1(num_per_class):
+    test_images = []
+    test_labels = []
+    for class_name in class_names:
+        image_paths = glob.glob('dataset/training/' + class_name + '/*')
+        image_paths = image_paths[-num_per_class:]
+        for image_path in image_paths:
+            test_images.append(cv.imread(image_path, 0))
+            test_labels.append(class_name)
+    print("Success to load test images")
+    return test_images, test_labels
+
+
 # Function to generate denseSIFT features for an image.
 def gen_denseSIFT_features(img):
     step_size = 10
@@ -55,7 +69,7 @@ def gen_denseSIFT_features(img):
     # kp = []
     # kp is a list of keypoints obtained by scanning pixels
     kp = [cv.KeyPoint(x, y, step_size) for y in range(0, rows, step_size)
-           for x in range(0, cols, step_size)]
+          for x in range(0, cols, step_size)]
 
     # for x in range(step_size, cols, step_size):
     #     for y in range(step_size, rows, step_size):
@@ -115,11 +129,6 @@ def build_spatial_pyramid(img, level, codebook, k):
     pyramid = np.array(pyramid).ravel()
     # print("Success to build the spatial pyramid")
 
-    # normalize the histogram
-    # dev = np.std(pyramid)
-    # pyramid -= np.mean(pyramid)
-    # pyramid /= dev
-
     [pyramid] = normalize([pyramid], norm="l1")
     return pyramid
 
@@ -148,32 +157,33 @@ def extract_descriptors(data):
     return train_desc_list
 
 
-training_data, training_labels = load_train_images(100)
-testing_data, testing_filenames = load_test_images(2985)
+training_data, training_labels = load_train_images(90)
+# testing_data, testing_filenames = load_test_images(2985)
+testing_data1, testing_labels1 = load_test_images1(10)
 
-k = 200
+k = 50
 print("Codebook size is: ", k)
 all_train_desc = extract_descriptors(training_data)
 print("The shape of descriptors: ", all_train_desc.shape)
 codebook = gen_codebook(all_train_desc, k)
 
 training_hist = get_pyramid(training_data, 2, codebook, k)
-testing_hist = get_pyramid(testing_data, 2, codebook, k)
+testing_hist = get_pyramid(testing_data1, 2, codebook, k)
 training_labels = np.asarray(training_labels)
-print(training_hist.shape)
-print(testing_hist.shape)
-print(training_labels.shape)
+# print(training_hist.shape)
+# print(testing_hist.shape)
+# print(training_labels.shape)
 
 # Train a linear SVM
 clf = LinearSVC(loss="hinge", random_state=0, max_iter=2000)
 clf.fit(training_hist, training_labels)
 predict = clf.predict(testing_hist)
-
+print("Accuracy: ", np.mean(predict == testing_labels1) * 100, "%")
 # write the predication to run3.txt file
-file = open("run3_2.txt", "w")
-for i in range(len(predict)):
-    file.write(testing_filenames[i] + " " + predict[i] + "\n")
-file.close()
+# file = open("run3_2.txt", "w")
+# for i in range(len(predict)):
+#     file.write(testing_filenames[i] + " " + predict[i] + "\n")
+# file.close()
 
 e_time = time.time()
 print("Processing " + str(e_time - s_time) + 's')
