@@ -62,7 +62,7 @@ def load_test_images1(num_per_class):
 
 # Function to generate denseSIFT features for an image.
 def gen_denseSIFT_features(img):
-    step_size = 10
+    step_size = 5
     rows, cols = img.shape
     # gray = cv.cvtColor(img, cv.COLOR_BGR2GRAY)
     sift = cv.xfeatures2d.SIFT_create()
@@ -161,7 +161,7 @@ training_data, training_labels = load_train_images(90)
 # testing_data, testing_filenames = load_test_images(2985)
 testing_data1, testing_labels1 = load_test_images1(10)
 
-k = 50
+k = 100
 print("Codebook size is: ", k)
 all_train_desc = extract_descriptors(training_data)
 print("The shape of descriptors: ", all_train_desc.shape)
@@ -175,7 +175,7 @@ training_labels = np.asarray(training_labels)
 # print(training_labels.shape)
 
 # Train a linear SVM
-clf = LinearSVC(loss="hinge", random_state=0, max_iter=2000)
+clf = LinearSVC(loss="hinge", random_state=0, max_iter=3000)
 clf.fit(training_hist, training_labels)
 predict = clf.predict(testing_hist)
 print("Accuracy: ", np.mean(predict == testing_labels1) * 100, "%")
