@@ -4,6 +4,7 @@ import cv2 as cv
 import numpy as np
 import glob
 from natsort import natsorted
+from sklearn.preprocessing import normalize
 import matplotlib.pyplot as plt
 from sklearn.cluster import KMeans
 from sklearn.svm import LinearSVC
@@ -48,10 +49,9 @@ def load_test_images(number_of_images):
 # Function to generate denseSIFT features for an image.
 def gen_denseSIFT_features(img):
     step_size = 10
-    feature_num = 500
     rows, cols = img.shape
     # gray = cv.cvtColor(img, cv.COLOR_BGR2GRAY)
-    sift = cv.xfeatures2d.SIFT_create(feature_num)
+    sift = cv.xfeatures2d.SIFT_create()
     # kp = []
     # kp is a list of keypoints obtained by scanning pixels
     kp = [cv.KeyPoint(x, y, step_size) for y in range(0, rows, step_size)
@@ -116,13 +116,15 @@ def build_spatial_pyramid(img, level, codebook, k):
     # print("Success to build the spatial pyramid")
 
     # normalize the histogram
-    dev = np.std(pyramid)
-    pyramid -= np.mean(pyramid)
-    pyramid /= dev
+    # dev = np.std(pyramid)
+    # pyramid -= np.mean(pyramid)
+    # pyramid /= dev
+
+    [pyramid] = normalize([pyramid], norm="l1")
     return pyramid
 
 
-# Get pyramid for each image
+# Get pyramid for each image and append them to a 2D array
 def get_pyramid(data, level, codebook, k):
     result = []
     for i in range(len(data)):
@@ -149,7 +151,7 @@ def extract_descriptors(data):
 training_data, training_labels = load_train_images(100)
 testing_data, testing_filenames = load_test_images(2985)
 
-k = 50
+k = 200
 print("Codebook size is: ", k)
 all_train_desc = extract_descriptors(training_data)
 print("The shape of descriptors: ", all_train_desc.shape)
@@ -163,12 +165,12 @@ print(testing_hist.shape)
 print(training_labels.shape)
 
 # Train a linear SVM
-clf = LinearSVC(random_state=0)
+clf = LinearSVC(loss="hinge", random_state=0, max_iter=2000)
 clf.fit(training_hist, training_labels)
 predict = clf.predict(testing_hist)
 
 # write the predication to run3.txt file
-file = open("run3.txt", "w")
+file = open("run3_2.txt", "w")
 for i in range(len(predict)):
     file.write(testing_filenames[i] + " " + predict[i] + "\n")
 file.close()
