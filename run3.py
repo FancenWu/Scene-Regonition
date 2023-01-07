@@ -62,7 +62,7 @@ def load_test_images1(num_per_class):
 
 # Function to generate denseSIFT features for an image.
 def gen_denseSIFT_features(img):
-    step_size = 5
+    step_size = 3
     rows, cols = img.shape
     # gray = cv.cvtColor(img, cv.COLOR_BGR2GRAY)
     sift = cv.xfeatures2d.SIFT_create()
@@ -129,6 +129,7 @@ def build_spatial_pyramid(img, level, codebook, k):
     pyramid = np.array(pyramid).ravel()
     # print("Success to build the spatial pyramid")
 
+    # normalize the histogram
     [pyramid] = normalize([pyramid], norm="l1")
     return pyramid
 
@@ -157,9 +158,9 @@ def extract_descriptors(data):
     return train_desc_list
 
 
-training_data, training_labels = load_train_images(90)
-# testing_data, testing_filenames = load_test_images(2985)
-testing_data1, testing_labels1 = load_test_images1(10)
+training_data, training_labels = load_train_images(100)
+testing_data, testing_filenames = load_test_images(2985)
+# testing_data1, testing_labels1 = load_test_images1(10)
 
 k = 100
 print("Codebook size is: ", k)
@@ -168,7 +169,7 @@ print("The shape of descriptors: ", all_train_desc.shape)
 codebook = gen_codebook(all_train_desc, k)
 
 training_hist = get_pyramid(training_data, 2, codebook, k)
-testing_hist = get_pyramid(testing_data1, 2, codebook, k)
+testing_hist = get_pyramid(testing_data, 2, codebook, k)
 training_labels = np.asarray(training_labels)
 # print(training_hist.shape)
 # print(testing_hist.shape)
@@ -178,12 +179,14 @@ training_labels = np.asarray(training_labels)
 clf = LinearSVC(loss="hinge", random_state=0, max_iter=3000)
 clf.fit(training_hist, training_labels)
 predict = clf.predict(testing_hist)
-print("Accuracy: ", np.mean(predict == testing_labels1) * 100, "%")
+# print("Accuracy: ", np.mean(predict == testing_labels1) * 100, "%")
+
+
 # write the predication to run3.txt file
-# file = open("run3_2.txt", "w")
-# for i in range(len(predict)):
-#     file.write(testing_filenames[i] + " " + predict[i] + "\n")
-# file.close()
+file = open("run3.txt", "w")
+for i in range(len(predict)):
+    file.write(testing_filenames[i] + " " + predict[i] + "\n")
+file.close()
 
 e_time = time.time()
 print("Processing " + str(e_time - s_time) + 's')
